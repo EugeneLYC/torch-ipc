@@ -196,13 +196,12 @@ static void configure_socket(int sock) {
    if (ret < 0) printf("Cannot set TCP_NODELAY on socket %d\n", sock);
    setsockopt( sock, IPPROTO_TCP, TCP_QUICKACK, (void *)&value, sizeof(value));
    if (ret < 0) printf("Cannot set TCP_QUICKACK on socket %d\n", sock);
-   /*
-   value = 1048576;
+   value = 4194304;
    ret = setsockopt(sock, SOL_SOCKET, SO_RCVBUF, &value, sizeof(int));
    if (ret < 0) printf("Cannot set SO_RECVBUF on socket %d\n", sock);
+   value = 16384;
    ret = setsockopt(sock, SOL_SOCKET, SO_SNDBUF, &value, sizeof(int));
    if (ret < 0) printf("Cannot set SO_SNDBUF on socket %d\n", sock);
-   */
 #ifndef __APPLE__
    int idle = 60;
    int interval = 30;
