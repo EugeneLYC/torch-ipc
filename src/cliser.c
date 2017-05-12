@@ -192,7 +192,17 @@ static int get_sockaddr(lua_State *L, const char *host, const char *port, struct
 
 static void configure_socket(int sock) {
    int value = 1;
-   setsockopt(sock, IPPROTO_TCP, TCP_NODELAY, &value, sizeof(int));
+   int ret = setsockopt(sock, IPPROTO_TCP, TCP_NODELAY, &value, sizeof(int));
+   if (ret < 0) printf("Cannot set TCP_NODELAY on socket %d\n", sock);
+   setsockopt( sock, IPPROTO_TCP, TCP_QUICKACK, (void *)&value, sizeof(value));
+   if (ret < 0) printf("Cannot set TCP_QUICKACK on socket %d\n", sock);
+   /*
+   value = 1048576;
+   ret = setsockopt(sock, SOL_SOCKET, SO_RCVBUF, &value, sizeof(int));
+   if (ret < 0) printf("Cannot set SO_RECVBUF on socket %d\n", sock);
+   ret = setsockopt(sock, SOL_SOCKET, SO_SNDBUF, &value, sizeof(int));
+   if (ret < 0) printf("Cannot set SO_SNDBUF on socket %d\n", sock);
+   */
 #ifndef __APPLE__
    int idle = 60;
    int interval = 30;
@@ -220,6 +230,8 @@ int cliser_server(lua_State *L) {
    ret = socket(PF_INET, SOCK_STREAM, 0);
    if (ret <= 0) return LUA_HANDLE_ERROR(L, errno);
    int sock = ret;
+   const int enable = 1;
+   setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(int));
    ret = bind(sock, &addr, addrlen);
    if (ret) {
       close(sock);
@@ -535,6 +547,9 @@ static size_t sock_send(int sock, void *ptr, size_t len, copy_context_t *copy_co
    while (rem > 0) {
       double t0 = cliser_profile_seconds();
       ssize_t ret = send(sock, ptr, rem, 0);
+      int value = 1;
+      setsockopt( sock, IPPROTO_TCP, TCP_QUICKACK, (void *)&value, sizeof(value));
+      if (ret < 0) printf("Cannot set TCP_QUICKACK on socket %d\n", sock);
       copy_context->tx.system_seconds += (cliser_profile_seconds() - t0);
       copy_context->tx.num_system_calls++;
       if (ret < 0) {
@@ -552,6 +567,9 @@ static size_t sock_recv(int sock, void *ptr, size_t len, copy_context_t *copy_co
    while (rem > 0) {
       double t0 = cliser_profile_seconds();
       ssize_t ret = recv(sock, ptr, rem, 0);
+      int value = 1;
+      setsockopt( sock, IPPROTO_TCP, TCP_QUICKACK, (void *)&value, sizeof(value));
+      if (ret < 0) printf("Cannot set TCP_QUICKACK on socket %d\n", sock);
       copy_context->rx.system_seconds += (cliser_profile_seconds() - t0);
       copy_context->rx.num_system_calls++;
       if (ret < 0) {
