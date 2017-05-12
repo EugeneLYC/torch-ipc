@@ -220,6 +220,8 @@ int cliser_server(lua_State *L) {
    ret = socket(PF_INET, SOCK_STREAM, 0);
    if (ret <= 0) return LUA_HANDLE_ERROR(L, errno);
    int sock = ret;
+   const int enable = 1;
+   setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(int));
    ret = bind(sock, &addr, addrlen);
    if (ret) {
       close(sock);
