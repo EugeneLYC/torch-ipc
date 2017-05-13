@@ -14,6 +14,7 @@ int cliser_server_broadcast(lua_State *L);
 int cliser_server_recv_any(lua_State *L);
 int cliser_server_send(lua_State *L);
 int cliser_server_recv(lua_State *L);
+int cliser_server_recv_async(lua_State *L);
 int cliser_server_net_stats(lua_State *L);
 
 int cliser_client(lua_State *L);

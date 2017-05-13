@@ -199,9 +199,11 @@ static void configure_socket(int sock) {
    value = 4194304;
    ret = setsockopt(sock, SOL_SOCKET, SO_RCVBUF, &value, sizeof(int));
    if (ret < 0) printf("Cannot set SO_RECVBUF on socket %d\n", sock);
+   /*
    value = 16384;
    ret = setsockopt(sock, SOL_SOCKET, SO_SNDBUF, &value, sizeof(int));
    if (ret < 0) printf("Cannot set SO_SNDBUF on socket %d\n", sock);
+   */
 #ifndef __APPLE__
    int idle = 60;
    int interval = 30;
@@ -710,6 +712,24 @@ int cliser_server_recv(lua_State *L) {
       }
    } else {
       ret = sock_recv_msg(L, server_client->client->sock, server_client->client->recv_rb, &server_client->server->copy_context);
+   }
+   server_client->server->copy_context.rx.total_seconds += (cliser_profile_seconds() - t0);
+   server_client->server->copy_context.rx.num_calls++;
+   return ret;
+}
+
+int cliser_server_recv_async(lua_State *L) {
+   double t0 = cliser_profile_seconds();
+   server_client_t *server_client = (server_client_t *)lua_touserdata(L, 1);
+   if (server_client->client == NULL) return LUA_HANDLE_ERROR_STR(L, "server client is invalid, either closed or used outside of server function scope");
+   int ret;
+   if (lua_type(L, 2) == LUA_TUSERDATA) {
+      return LUA_HANDLE_ERROR_STR(L, "recvAsync can only be called without arguments");
+   } else {
+      ret = sock_recv_msg_peek(L, server_client->client->sock, server_client->client->recv_rb);
+      if (ret > 0) {
+          ret = sock_recv_msg(L, server_client->client->sock, server_client->client->recv_rb, &server_client->server->copy_context);
+      }
    }
    server_client->server->copy_context.rx.total_seconds += (cliser_profile_seconds() - t0);
    server_client->server->copy_context.rx.num_calls++;

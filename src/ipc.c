@@ -125,6 +125,7 @@ static const struct luaL_Reg server_routines[] = {
 static const struct luaL_Reg server_client_routines[] = {
    {"send", cliser_server_send},
    {"recv", cliser_server_recv},
+   {"recvAsync", cliser_server_recv_async},
    {"tag", cliser_server_tag},
    {"id", cliser_server_id},
    {"close", cliser_server_client_close},
