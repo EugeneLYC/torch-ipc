@@ -118,6 +118,8 @@ static const struct luaL_Reg server_routines[] = {
    {"clients", cliser_server_clients},
    {"broadcast", cliser_server_broadcast},
    {"recvAny", cliser_server_recv_any},
+   {"waitAny", cliser_server_wait_any},
+   {"unchokeAll", cliser_server_unchoke_all},
    {"netStats", cliser_server_net_stats},
    {NULL, NULL}
 };
@@ -128,6 +130,7 @@ static const struct luaL_Reg server_client_routines[] = {
    {"recvAsync", cliser_server_recv_async},
    {"tag", cliser_server_tag},
    {"id", cliser_server_id},
+   {"choke", cliser_server_choke},
    {"close", cliser_server_client_close},
    {"address", cliser_server_client_address},
    {NULL, NULL}

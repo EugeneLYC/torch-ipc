@@ -67,6 +67,8 @@ typedef struct client_t {
    ringbuffer_t *recv_rb;
    copy_context_t copy_context;
    char *tag;
+   // only used in waitAny(), when choked, do not wait for this client even if it is available
+   int choked;
    int id;
    int ref_count;
 } client_t;
@@ -358,6 +360,7 @@ int cliser_client(lua_State *L) {
    client->send_rb = ringbuffer_create(SEND_RECV_SIZE);
    client->recv_rb = ringbuffer_create(SEND_RECV_SIZE);
    client->ref_count = 1;
+   client->choked = 0;
    client->copy_context.use_fastpath = use_fastpath;
    client_t **clientp = (client_t **)lua_newuserdata(L, sizeof(client_t *));
    *clientp = client;
@@ -401,6 +404,18 @@ static int compare_clients(const void *a, const void *b) {
 static int compare_clients_inverted(const void *a, const void *b) {
    return (*(const client_t**)b)->id - (*(const client_t**)a)->id;
 }
+
+
+int cliser_server_unchoke_all(lua_State *L) {
+   server_t *server = (server_t *)lua_touserdata(L, 1);
+   client_t *client = server->clients;
+   while (client) {
+      client->choked = 0;
+      client = client->next;
+   }
+   return 0;
+}
+
 
 int cliser_server_clients(lua_State *L) {
    server_t *server = (server_t *)lua_touserdata(L, 1);
@@ -446,6 +461,7 @@ int cliser_server_clients(lua_State *L) {
          int use_fastpath = can_use_fastpath(L, sock, server->ip_address, ((struct sockaddr_in *)&addr)->sin_addr.s_addr);
          client_t *client = (client_t *)calloc(1, sizeof(client_t));
          client->sock = sock;
+         client->choked = 0;
          client->send_rb = ringbuffer_create(SEND_RECV_SIZE);
          client->recv_rb = ringbuffer_create(SEND_RECV_SIZE);
          client->copy_context.use_fastpath = use_fastpath;
@@ -513,6 +529,17 @@ int cliser_server_id(lua_State *L) {
       return 0;
    }
    lua_pushinteger(L, server_client->client->id);
+   return 1;
+}
+
+int cliser_server_choke(lua_State *L) {
+   server_client_t *server_client = (server_client_t *)lua_touserdata(L, 1);
+   if (server_client->client == NULL) return LUA_HANDLE_ERROR_STR(L, "server client is invalid, either closed or used outside of server function scope");
+   if (lua_gettop(L) > 1) {
+      server_client->client->choked = lua_tointeger(L, 2);
+      return 0;
+   }
+   lua_pushinteger(L, server_client->client->choked);
    return 1;
 }
 
@@ -761,6 +788,27 @@ int cliser_server_broadcast(lua_State *L) {
    server->copy_context.tx.total_seconds += (cliser_profile_seconds() - t0);
    server->copy_context.tx.num_calls++;
    return ret;
+}
+
+int cliser_server_wait_any(lua_State *L) {
+   server_t *server = (server_t *)lua_touserdata(L, 1);
+   const char *tag = luaL_optstring(L, 2, NULL);
+   fd_set fds;
+   FD_ZERO(&fds);
+   int highest = -1;
+   client_t *client = server->clients;
+   while (client) {
+      if ((!client->choked) && (!tag || (client->tag && strcmp(tag, client->tag) == 0))) {
+         FD_SET(client->sock, &fds);
+         if (client->sock > highest) {
+            highest = client->sock;
+         }
+      }
+      client = client->next;
+   }
+   int ret = select(highest + 1, &fds, NULL, NULL, NULL);
+   if (ret < 0) return LUA_HANDLE_ERROR(L, errno);
+   return 0;
 }
 
 int cliser_server_recv_any(lua_State *L) {
